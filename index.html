@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8" />
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-size: cover;
+        }
+        #header{
+            background: no-repeat left/cover #947264;
+            display: flex;
+            height: 80px;
+            min-width: 120px;
+            align-items: center;
+            color: #fff;
+            text-shadow: #000 0 0 .2em;
+        }
+        #arcviz{
+            display: flex;
+            height: 500px;
+            background: rgba(0, 0, 0, 0.1);
+            justify-content: center;
+        }
+        #footer {
+            display:table;
+            width:100%;
+            bottom: 0;
+        }
+        #first {
+            display:table-cell;
+            bottom: 0;
+            position:relative;
+        }
+        #second {
+            display:table-cell;
+            bottom: 0;
+            width:35px;
+        }
+    </style>
+</head>
+<body>
+<header id="header">
+    <h1>TP4 : Arbres et réseaux</h1>
+</header>
+<div id="arcviz"></div>
+<div id="footer">
+    <div id="first">
+        <p id="creators" style="left: 1%; position:absolute;color: grey">© 2020 TP4: BARRED-LAMRABET</p>
+    </div>
+    <div id="second">
+        <div id="myMenu">
+            <div class="myWrapper">
+                <nav>
+                    <a href="https://github.com/emnabarred/arbres-et-r-seaux-TP4-Data-viz"><img src="github.png" height="35" width="35" style="right: 0.5%;position:absolute" /></a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Definition de la taille du svg
+    const margin = {
+            top: 0,
+            right: 30,
+            bottom: 20,
+            left: 10
+        },
+        width = 450 - margin.left - margin.right,
+        height = 300 - margin.top - margin.bottom;
+
+    // ajout du svg à la 'div id="arcviz"' de page html
+    var svg = d3
+        .select("#arcviz")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // lecture des données du fichier json
+    d3.json("data.json", function(data) {
+
+        // List des noms des noeuds
+        let allNodes = data.nodes.map(function(d) {
+            return d.name;
+        });
+
+        // Échelle pour positionner les élèments
+        let scale = d3.scalePoint().domain(allNodes).range([0, width]);
+
+        // Pré-traitement pour créer la table de correspondance qui permet
+        // de connaitre le nom du nom en fonction de son id
+        let idToNodeName = {};
+        data.nodes.forEach(function(n) {
+            idToNodeName[n.id] = n;
+        });
+
+        // Ajout des arcs
+        var links = svg
+            .selectAll("mylinks")
+            .data(data.links)
+            .enter()
+            .append("path")
+            .attr("d", function(d) {
+                //arc x1
+                let x1 = scale(idToNodeName[d.source].name);
+                //arc end
+                let x2 = scale(idToNodeName[d.target].name);
+                return ["M",
+                    x1,
+                    height - 30, // the arc starts at the coordinate x=start, y=height-30 (where the starting node is)
+                    "A", // A for elliptical arc
+                    (x1 - x2) / 2,
+                    ",", // coordinates of the inflexion point. Height of this point is proportional with start - end distance
+                    (x1 - x2) / 2,
+                    0,
+                    0,
+                    ",",
+                    x1 < x2 ? 1 : 0,
+                    x2,
+                    ",",
+                    height - 30
+                ].join(" ");
+            })
+            .style("fill", "none")
+            .attr("stroke", "black")
+
+        // Adding the nodes
+        var nodes = svg
+            .selectAll("mynodes")
+            .data(data.nodes)
+            .enter()
+            .append("circle")
+            .attr("cx", function(d) {
+                return (scale(d.name))
+            })
+            .attr("cy", height - 30)
+            .attr("r", 8)
+            .style("stroke", "#947264")
+            .style("fill", "#947264")
+
+        // Adding the labels
+        svg
+            .selectAll("mylabels")
+            .data(data.nodes)
+            .enter()
+            .append("text")
+            .attr("x", function(d) {
+                return (scale(d.name))
+            })
+            .attr("y", height - 10)
+            .text(function(d) {
+                return (d.name)
+            })
+            .style("text-anchor", "middle")
+
+
+        // Adding the interactivity feature
+        nodes
+            .on("mouseover", function(d) {
+                nodes
+                    .style("stroke", "grey")
+                    .style("fill", "grey")
+                d3.select(this)
+                    .style("stroke", "#947264")
+                    .style("fill", "#947264")
+                links
+                    .style("stroke-opacity", function(link_d) {
+                        return link_d.source === d.id || link_d.target === d.id ? 1 : 1;
+                    })
+                    .style("stroke-width", function(link_d) {
+                        return link_d.source === d.id || link_d.target === d.id ? 4 : .8;
+                    })
+                    .attr("stroke", function(link_d) {
+                        return link_d.source === d.id || link_d.target === d.id ? "#947264" : "grey";
+                    })
+            })
+            .on("mouseout", function() {
+                nodes
+                    .style("opacity", 1)
+                    .style("fill", "#947264")
+                    .style("stroke", "#947264")
+                links
+                    .style("stroke-width", "1")
+                    .style("stroke-opacity", "1")
+                    .style("fill", "none")
+                    .attr("stroke", "black")
+            })
+    })
+</script>
+</body>
